@@ -1,7 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import AllowAny # Change to IsAuthenticated later to require authentication
+from rest_framework.permissions import IsAuthenticated, AllowAny # Change to IsAuthenticated later to require authentication
 from django.shortcuts import get_object_or_404
 from django.db import models
 from .models import Conversation, Message
