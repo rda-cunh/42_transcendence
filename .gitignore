@@ -1,1 +1,2 @@
 .env
+srcs/backend/app/db.sqlite3

@@ -10,11 +10,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
         self.conversation_id = self.scope['url_route']['kwargs']['conversation_id']
         self.room_group_name = f'chat_{self.conversation_id}'
 
-        # Check if user is authorized
-        user = self.scope['user']
-        if not await self.is_user_in_conversation(user, self.conversation_id):
-            await self.close()
-            return
+        # Check if user is authorized (to implement later)
+        # user = self.scope['user']
+        # if not await self.is_user_in_conversation(user, self.conversation_id):
+        #    await self.close()
+        #    return
 
         # Join room group
         await self.channel_layer.group_add(
