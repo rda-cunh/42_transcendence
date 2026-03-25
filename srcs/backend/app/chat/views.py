@@ -1,7 +1,7 @@
-from rest_framework.decorators import APIView
+from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny # Change to IsAuthenticated later to require authentication
 from django.shortcuts import get_object_or_404
 from django.db import models
 from .models import Conversation, Message
@@ -23,8 +23,8 @@ class ConversationListView(APIView):
 
 
 class ConversationDetailView(APIView):
-    permission_classes = [IsAuthenticated]
-
+    permission_classes = [AllowAny]
+    
     def get(self, request, conversation_id):
         conversation = get_object_or_404(Conversation, id=conversation_id)
         if request.user not in [conversation.buyer, conversation.seller]:
