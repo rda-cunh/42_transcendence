@@ -1,218 +1,290 @@
 from rest_framework.decorators import APIView
 from rest_framework.response import Response
-# from .models import Product
-# from .serializers import ProductSerializer
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework import status
+from rest_framework.exceptions import APIException
+from . import serializers
+import requests
 
+DATA_SERVICE = "http://data-service:9000/api/"
+
+# TODO AUTH PROFILE GET
+# TODO LISTING ID PATCH
+# TODO LISTING ID DELETE
+# TODO LISTING GET
+# TODO ORDER GET, POST
+# TODO ORDER ID GET, PATCH
+
+def raiseForUpstream(method, endpoint, payload=None):
+    try:
+        upstream = requests.request(
+                method=method,
+                url=f"{DATA_SERVICE}{endpoint}",
+                json=payload,
+                timeout=5,
+                )
+        if upstream.status_code == 204 or not upstream.content:
+            return (Response(status=upstream.status_code))
+        try:
+            body = upstream.json()
+        except requests.exceptions.JSONDecodeError:
+            body = {"detail": upstream.text or "Upstream returned non-JSON response"}
+        return Response(body, status=upstream.status_code)
+    except requests.RequestException as e:
+        return Response({"error": "Data service unreachable",
+                         "details": str(e)},
+                        status=status.HTTP_502_BAD_GATEWAY)
 
 # Auth API
 
+# This api should have [user] [email] [passhash]
+# this with JWT will work as request, raise_for_status, create JWT with upstream data send both JWT tokens
 
-class user_create(APIView):
+
+class auth_register(APIView):
+    # this will will allow non authenticated methods in ["METHOD"]
+    def get_self(self):
+        if self.request.method in ["POST"]:
+            return [AllowAny()]
+        return [IsAuthenticated()]
     def post(self, request):
-        # This api should have [user] [email] [passhash]
-        data = {
-                "Message": "User created Sucessfully", "user_id": 101,
-                }
-        return Response(data)
+        AllowAny()
+        serializer = serializers.authCreate(data=request.data)
+        serializer.is_valid(raise_exception=True)
 
-    def delete(self, request):
+        return raiseForUpstream("POST", "auth/register/", serializer.validated_data)
+
+    def delete(self, request, id):
         # This api should have JWT_String, passhash, user id
-        data = {
-                "Message": "User account has been terminated",
-                }
-        return Response(data)
+        serializer = serializers.authDelete(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        return raiseForUpstream("DELETE", f"auth/register/{id}/", serializer.validated_data)
 
 
-class user_session(APIView):
-    def post(self, request):
-        # this api should have email and passhash
-        data = {
-            "token": "JWT_STRING", "status": "Login Successful",
-                }
-        return Response(data)
+class auth_login(APIView):
+    def post(self, request, id):
+        # This api should have [user] [email] [passhash]
+        serializer = serializers.authLogin(data=request.data)
+        serializer.is_valid(raise_exception=True)
 
-    def delete(self, request):
-        # this api should have JWT_STRING
-        return Response({"Message": "Logged out"})
+        return raiseForUpstream("POST", f"auth/login/{id}", serializer.validated_data)
+
+    def delete(self, request, id):
+        # This api should have JWT_String, passhash, user id
+
+        return raiseForUpstream("DELETE", f"auth/login/{id}/")
 
 
-class user_profile(APIView):
+class auth_profile(APIView):
     def get(self, request):
         # api should have JWT_STRING if does not match, different information is provided
-        data = {
-                "user_info": {
-                    "username": "Rapcampo",
-                    "email": "example@42.com",
-                    "billing address": "Avenida dos aliados, 42, 4000-000",
-                    "avatar": "url",
-                    "user_id": 1,
-                    "Products_owned": [1, 2, 5, 6],
-                    "Current_order": 1,  # unique order ids may be interesting here
-                    "Order_history": [2, 4, 5],
-                    },
-                }
-        return Response(data)
+        # serializer = serializers.authGet(data=request.data, partial=True)
+        # serializer.is_valid(raise_exception=True)
+        #user_id = request.user_id
 
-    def patch(self, request):
+        return raiseForUpstream("GET", f"auth/profile/{user_id}/")
+
+    def patch(self, request, id):
         # api should probably receive all user info that needs to be edited
-        return Response({"Status": "User profile has been updated successfully"})
+        serializer = serializers.authPatch(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
 
-    def delete(self, request):
+        return raiseForUpstream("PATCH", f"auth/profile/{id}/", serializer.validated_data)
+
+    def delete(self, request, id):
         # api should probably receive all user info that needs to be deleted
-        return Response({"Status": "User profile has been updated successfully"})
+        serializer = serializers.authProfileDelete(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+
+        return raiseForUpstream("DELETE", f"auth/profile/{id}/")
+
+
+class auth_password(APIView):
+    def patch(self, request):
+        serializer = serializers.authPassPatch(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        return raiseForUpstream("PATCH", f"auth/profile/password/{id}/", serializer.validated_data)
+
+
+class auth_address(APIView):
+    def get(self, request, id):
+        return raiseForUpstream("GET", f"auth/address/{id}/")
+
+    def post(self, request, id):
+        serializer = serializers.authAddressPost(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        return raiseForUpstream("POST", f"auth/address/{id}/", serializer.validated_data)
+    
+    def patch(self, request, id):
+        serializer = serializers.authAddressPatch(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        return raiseForUpstream("PATCH", f"auth/address/{id}/", serializer.validated_data)
+
+    def delete(self, request, id):
+        return raiseForUpstream("DELETE", f"auth/address/{id}/")
 
 # Product listings API
 
 
 class listing_id(APIView):
     def get(self, request, id):
+        # serializer = listingIdGet(data=request.data, partial=True)
+        # serializer.is_valid(raise_exception=True)
 
-        data = {
-                "requested_id": id,
-                "listing": {
-                    "product_id": 1,
-                    "name": "Infinity shader",
-                    "description": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec fringilla mauris sed nibh scelerisque, ultrices ornare velit aliquam. Cras semper neque nec metus suscipit scelerisque. Nulla in lorem facilisis, efficitur libero nec, pellentesque eros. Aliquam at tortor odio. Nam pretium lobortis leo, vitae sodales eros sagittis fringilla. Sed ligula mauris, congue in finibus non, vulputate a neque. Nunc eleifend ex urna, id laoreet sapien aliquam eget. Donec lorem neque, efficitur et viverra eget, auctor sit amet nisl. Nulla sodales, nisl sit amet pharetra posuere, mi lorem cursus erat, sed ultricies quam urna a magna. Praesent tincidunt ligula in arcu condimentum lobortis. Nunc rhoncus lobortis nibh sit amet venenatis. Fusce eget cursus tellus. Proin molestie dolor eget nisl faucibus iaculis vel imperdiet tellus. Integer vel ligula sit amet lacus ornare facilisis vel et ipsum. Ut laoreet ipsum purus, sit amet posuere sapien eleifend et. In non felis a libero tempor vestibulum.",
-                    "price": 19.99,
-                    "currency": "EUR",
-                    "status": "active",
-                    },
-                }
-        return Response(data)
+        return raiseForUpstream("GET", f"listings/{id}/")
 
     def patch(self, request, id):
-        return Response({"status": f"Product {id} updated sucessfully"})
+        serializer = serializers.listingIdPatch(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+
+        return raiseForUpstream("PATCH", f"listings/{id}/", serializer.validated_data)
 
     def delete(self, request, id):
-        return Response({"status": f"Product {id} deleted sucessfully"})
+        # TODO add authentication verification and provide id to data-service
+        # serializer = serializers.listingIdPatch(data=request.data, partial=True)
+        # serializer.is_valid(raise_exception=True)
+
+        return raiseForUpstream("DELETE", f"listings/{id}/")
 
 
 class listing_full(APIView):
     def post(self, request):
-        return Response({"product_id": 1})
+        # serializer = listingsPost(data=request.data, partial=True)
+        # serializer.is_valid(raise_exception=True)
+
+        # return raiseForUpstream("POST", "listings/", serializer.validated_data)
+        return raiseForUpstream("POST", "listings/")
 
     def get(self, request):
-
-        data = [
-                {
-                    "product_id": 1,
-                    "name": "Infinity shader",
-                    "description": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec fringilla mauris sed nibh scelerisque, ultrices ornare velit aliquam. Cras semper neque nec metus suscipit scelerisque. Nulla in lorem facilisis, efficitur libero nec, pellentesque eros. Aliquam at tortor odio. Nam pretium lobortis leo, vitae sodales eros sagittis fringilla. Sed ligula mauris, congue in finibus non, vulputate a neque. Nunc eleifend ex urna, id laoreet sapien aliquam eget. Donec lorem neque, efficitur et viverra eget, auctor sit amet nisl. Nulla sodales, nisl sit amet pharetra posuere, mi lorem cursus erat, sed ultricies quam urna a magna. Praesent tincidunt ligula in arcu condimentum lobortis. Nunc rhoncus lobortis nibh sit amet venenatis. Fusce eget cursus tellus. Proin molestie dolor eget nisl faucibus iaculis vel imperdiet tellus. Integer vel ligula sit amet lacus ornare facilisis vel et ipsum. Ut laoreet ipsum purus, sit amet posuere sapien eleifend et. In non felis a libero tempor vestibulum.",
-                    "price": 19.99,
-                    "currency": "EUR",
-                    "status": "active",
-                    },
-                {
-                    "product_id": 2,
-                    "name": "Erik shader",
-                    "description": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec fringilla mauris sed nibh scelerisque, ultrices ornare velit aliquam. Cras semper neque nec metus suscipit scelerisque. Nulla in lorem facilisis, efficitur libero nec, pellentesque eros. Aliquam at tortor odio. Nam pretium lobortis leo, vitae sodales eros sagittis fringilla. Sed ligula mauris, congue in finibus non, vulputate a neque. Nunc eleifend ex urna, id laoreet sapien aliquam eget. Donec lorem neque, efficitur et viverra eget, auctor sit amet nisl. Nulla sodales, nisl sit amet pharetra posuere, mi lorem cursus erat, sed ultricies quam urna a magna. Praesent tincidunt ligula in arcu condimentum lobortis. Nunc rhoncus lobortis nibh sit amet venenatis. Fusce eget cursus tellus. Proin molestie dolor eget nisl faucibus iaculis vel imperdiet tellus. Integer vel ligula sit amet lacus ornare facilisis vel et ipsum. Ut laoreet ipsum purus, sit amet posuere sapien eleifend et. In non felis a libero tempor vestibulum.",
-                    "price": 19.99,
-                    "currency": "EUR",
-                    "status": "active",
-                    },
-                {
-                    "product_id": 3,
-                    "name": "Rainbow shader",
-                    "description": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec fringilla mauris sed nibh scelerisque, ultrices ornare velit aliquam. Cras semper neque nec metus suscipit scelerisque. Nulla in lorem facilisis, efficitur libero nec, pellentesque eros. Aliquam at tortor odio. Nam pretium lobortis leo, vitae sodales eros sagittis fringilla. Sed ligula mauris, congue in finibus non, vulputate a neque. Nunc eleifend ex urna, id laoreet sapien aliquam eget. Donec lorem neque, efficitur et viverra eget, auctor sit amet nisl. Nulla sodales, nisl sit amet pharetra posuere, mi lorem cursus erat, sed ultricies quam urna a magna. Praesent tincidunt ligula in arcu condimentum lobortis. Nunc rhoncus lobortis nibh sit amet venenatis. Fusce eget cursus tellus. Proin molestie dolor eget nisl faucibus iaculis vel imperdiet tellus. Integer vel ligula sit amet lacus ornare facilisis vel et ipsum. Ut laoreet ipsum purus, sit amet posuere sapien eleifend et. In non felis a libero tempor vestibulum.",
-                    "price": 19.99,
-                    "currency": "EUR",
-                    "status": "active",
-                    },
-                {
-                    "product_id": 4,
-                    "name": "Punk shader",
-                    "description": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec fringilla mauris sed nibh scelerisque, ultrices ornare velit aliquam. Cras semper neque nec metus suscipit scelerisque. Nulla in lorem facilisis, efficitur libero nec, pellentesque eros. Aliquam at tortor odio. Nam pretium lobortis leo, vitae sodales eros sagittis fringilla. Sed ligula mauris, congue in finibus non, vulputate a neque. Nunc eleifend ex urna, id laoreet sapien aliquam eget. Donec lorem neque, efficitur et viverra eget, auctor sit amet nisl. Nulla sodales, nisl sit amet pharetra posuere, mi lorem cursus erat, sed ultricies quam urna a magna. Praesent tincidunt ligula in arcu condimentum lobortis. Nunc rhoncus lobortis nibh sit amet venenatis. Fusce eget cursus tellus. Proin molestie dolor eget nisl faucibus iaculis vel imperdiet tellus. Integer vel ligula sit amet lacus ornare facilisis vel et ipsum. Ut laoreet ipsum purus, sit amet posuere sapien eleifend et. In non felis a libero tempor vestibulum.",
-                    "price": 19.99,
-                    "currency": "EUR",
-                    "status": "active",
-                    },
-                ]
-        return Response({"items": len(data), "results": data})
+        # will likely need to break down the url and send it either as body or link
+        return raiseForUpstream("GET", "listings/")
 
 
-# this is a proper product class implementation using models and serializers
-# may need to interact better with data service API.
+class seller_id(APIView):
+    def get(self, request, id):
+        return raiseForUpstream("GET", f"listings/seller/{id}/")
 
 
-'''
-@api_view(["GET"])
-def listing_detail(request, id):
+class seller_product(APIView):
+    def get(self, request, product_id):
+        return raiseForUpstream("GET", f"listings/seller/{product_id}/")
 
-    try:
-        product = Product.objects.get(pk=id)
-    except product.DoesNotExist:
-        return Response({"error": "Not Found."}, status=status.HTTP_404_NOT_FOUND)
 
-    data = ProductSerializer(product).data
-    return Response(data)
-'''
+class listings_image(APIView):
+    def post(self, request, product_id):
+        # serializer = listingsPost(data=request.data, partial=True)
+        # serializer.is_valid(raise_exception=True)
 
-'''
-@api_view(["GET"])
-def listing_full(request):
+        return raiseForUpstream("POST", f"listings/{product_id}/images/")
 
-    query = Product.objects.all().order_by("id")
-    data = ProductSerializer(query, many=true).data
-    return Responde({"count": len(data), "results": data})
-'''
+    def get(self, request, product_id):
+        return raiseForUpstream("GET", f"listings/{product_id}/images/")
+
+class listings_image_id(APIView):
+    def get(self, request, product_id, image_id):
+        return raiseForUpstream("GET", f"listings/{product_id}/images/{image_id}/")
+
+    def delete(self, request, product_id, image_id):
+        return raiseForUpstream("DELETE", f"listings/{product_id}/images/{image_id}/")
+
+
+class listings_review(APIView):
+    def post(self, request, product_id):
+        # serializer = listingsPost(data=request.data, partial=True)
+        # serializer.is_valid(raise_exception=True)
+
+        return raiseForUpstream("POST", f"listings/{product_id}/review/")
+
+    def get(self, request, product_id):
+        return raiseForUpstream("GET", f"listings/{product_id}/review/")
+
+
+class review_id(APIView):
+
+    def patch(self, request, product_id, review_id):
+        # serializer = listingsPost(data=request.data, partial=True)
+        # serializer.is_valid(raise_exception=True)
+
+        return raiseForUpstream("PATCH", f"listings/{product_id}/review/{review_id}/")
+
+    def delete(self, request, product_id, review_id):
+        # serializer = listingsPost(data=request.data, partial=True)
+        # serializer.is_valid(raise_exception=True)
+
+        return raiseForUpstream("DELETE", f"listings/{product_id}/review/{review_id}/")
+
+# orders API
 
 
 class order_create(APIView):
+
+    # this get_permission is how i can set auth requirement for different methods.
+
     def get(self, request):
         # This API should have JWT_STRING, ?page=num&status=created
         # return a list or old orders
-        data = {
-                "page": 1, "page_size": 10, "total": 3,
-                 "items": [
-                     {"order_id": 5501, "status": "created", "total": 62.5,
-                      "currency": "EUR", "created_at": "2026-02-25T14:12:30Z"},
-                     {"order_id": 5498, "status": "shipped", "total": 25.0,
-                      "currency": "EUR",
-                      "created_at": "2026-02-20T09:05:11Z"},
-                     ],
-                }
-        return Response(data)
+
+        return raiseForUpstream("GET", "orders/")
 
     def post(self, request):
         # this API should have JWT_STRING and list of items [id] and quantatity
         # should also have billing address and name
-        data = {
-                "status": "created",
-                "order_id": 5501,
-                "total": 62.5,
-                "currency": "EUR",
-                }
-        return Response(data)
+        serializer = serializers.orderIdPatch(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+
+        return raiseForUpstream("POST", "orders/", serializer.validated_data)
 
 
 class order_id(APIView):
     def get(self, request, id):
-        # order id is needed, nothing else
-        data = {
-                "order_id": id, "status": "created", "currency": "EUR",
-                "total": 62.5, "items": [
-                    {"listing_id": 210, "title": "Mechanical Keyboard", "unit_price": 25.0,
-                     "quantity": 2},
-                    {"listing_id": 2, "title": "Keycap Set", "unit_price": 12.5, "quantity": 1},
-                    ]
 
-
-                }
-        return Response(data)
+        return raiseForUpstream("GET", f"orders/{id}/")
 
     def patch(self, request, id):
-        # this API needs JWT_STRING, order id and a status change, cancelled, delayed,etc
-        return Response({"message": "Updated", "order_id": id, "new_status": "cancelled"})
+        serializer = serializers.orderIdPatch(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
 
+        return raiseForUpstream("PATCH", f"orders/{id}/", serializer.validated_data)
+
+
+class order_buyer_id(APIView):
+    def get(self, request, id):
+
+        return raiseForUpstream("GET", f"orders/buyer/{id}/")
+
+
+class payment_id(APIView):
+    def get(self, request, order_id):
+
+        return raiseForUpstream("GET", f"payment/{id}/")
+
+    def post(self, request, order_id):
+
+        return raiseForUpstream("POST", f"payment/{id}/")
+
+    def patch(self, request, order_id):
+
+        return raiseForUpstream("PATCH", f"payment/{id}/")
+
+    def delete(self, request, order_id):
+
+        return raiseForUpstream("DELETE", f"payment/{id}/")
+
+
+# PUBLIC APIs
 
 # USER API interfaces
+
+class user_list(APIView):
+    def get(self, request):
+        return raiseForUpstream("GET", "users/")
 
 
 class user_id(APIView):
     def get(self, request, id):
 
-        user_data = {
-                "Name": "Erik",
-                "Products_owned": [1, 2, 5, 6],
-                }
-        return Response(user_data)
+        return raiseForUpstream("GET", f"users/{id}/")

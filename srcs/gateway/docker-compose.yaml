@@ -1,9 +1,18 @@
 services:
   gateway:
+    build:
+      context: .
     container_name: gateway
-    image: nginx:alpine
     ports:
       - "80:80"
+      - "443:443"
+    environment:
+      - CA_CRT_NAME=${CA_CRT_NAME:-ca.crt}
+      - ENVSUBST_VARS=CA_CRT_NAME
     volumes:
-      - ./default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./default.conf:/etc/nginx/templates/default.conf.template:ro
+      - certs_data:/certs:ro
     restart: always
+    depends_on:
+      pki-init:
+        condition: service_completed_successfully
